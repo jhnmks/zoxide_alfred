@@ -6,7 +6,8 @@ An Alfred workflow that uses **your installed macOS `zoxide` binary and its data
 
 - macOS and Alfred 5+ with the Powerpack (required for workflows).
 - Installed [zoxide](https://github.com/ajeetdsouza/zoxide), e.g. `brew install zoxide`.
-- Build with `python3 tools/build.py`, then open `dist/Zoxide.alfredworkflow` to import into Alfred.
+- Download **Zoxide.alfredworkflow** from the [latest release](https://github.com/jhnmks/zoxide_alfred/releases/latest) and open it to import into Alfred.
+- To build from source instead: run `python3 tools/build.py`, then open `dist/Zoxide.alfredworkflow`.
 - Click **Configure Workflow…** to choose your terminal and optionally override the binary or database directory.
 
 The workflow runs with macOS's built-in JavaScript for Automation (`osascript`); Node and Python are **not required after installation**. No shell plugin or shell initialization is needed. Python 3 is used only for packaging; Node is used only for tests.
@@ -26,6 +27,8 @@ The workflow runs with macOS's built-in JavaScript for Automation (`osascript`);
 - `z add` — Start searching for a folder to add.
 - `z delete project` — Find entries to remove; Enter asks for confirmation.
 - `z delete` — List all entries for removal, including unavailable folders.
+
+The workflow editor has separate inputs for `z` (search/open), `z add` (native folder-name search), and `z delete` (record-name search). Finder/parent/terminal/copy actions remain modifiers on `z` results. Delete intentionally uses a Script Filter backed by zoxide, not Spotlight, so only recorded entries—including missing folders—are offered.
 
 Deletion **only removes a zoxide record**, never the directory or its files. Cancel is the default confirmation button. Opening a folder records a visit using `zoxide add`, so its rank evolves with usage. Copying a path does not change its rank.
 

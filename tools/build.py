@@ -13,6 +13,7 @@ NOTIFY = "530ED2E5-D251-41C0-A7FC-C9B39F926681"
 FILE_ACTION = "6A89B2AF-096D-4AB8-8850-901E7389D826"
 ADD_FOLDER = "A6D23031-E68B-4587-969D-EFCD0B0FF74C"
 ADD_SEARCH = "127EC551-CF84-4CF7-B0EA-B4CA641DFBC6"
+DELETE_SEARCH = "92E22635-FF45-4E89-A2B0-F2755FAFC177"
 
 
 def build():
@@ -22,10 +23,10 @@ def build():
         "name": "Zoxide",
         "description": "Search, open, add, and remove folders using your installed zoxide.",
         "createdby": "jmokos",
-        "version": "1.3.0",
+        "version": "1.4.0",
         "disabled": False,
         "readme": readme,
-        "webaddress": "",
+        "webaddress": "https://github.com/jhnmks/zoxide_alfred",
         "variables": {"terminal_app": "", "zoxide_path": ""},
         "userconfigurationconfig": [
             {"type": "filepicker", "variable": "terminal_app", "label": "Preferred terminal application",
@@ -40,6 +41,15 @@ def build():
              "config": {"default": "", "required": False, "filtermode": 1, "placeholder": "Use existing zoxide database"}},
         ],
         "objects": [
+            {"uid": DELETE_SEARCH, "type": "alfred.workflow.input.scriptfilter", "version": 3,
+             "config": {"keyword": "z delete", "title": "Remove a folder from zoxide",
+                        "subtext": "Search recorded folders by name — files are never deleted",
+                        "argumenttype": 1, "withspace": True, "alfredfiltersresults": False,
+                        "script": '/usr/bin/osascript -l JavaScript ./zoxide.js delete-search "$1"',
+                        "scriptargtype": 1, "type": 0, "escaping": 0,
+                        "runningsubtext": "Searching zoxide records…", "queuedelaymode": 0,
+                        "queuedelaycustom": 1, "queuedelayimmediatelyinitially": True,
+                        "queuemode": 1}},
             {"uid": ADD_SEARCH, "type": "alfred.workflow.input.filefilter", "version": 0,
              "config": {"keyword": "z add", "title": "Add a folder to zoxide",
                         "subtext": "Type a folder name, then press Enter to add it",
@@ -57,9 +67,9 @@ def build():
             {"uid": FILTER, "type": "alfred.workflow.input.scriptfilter", "version": 3,
              "config": {
                  "keyword": "z", "title": "Zoxide — search folders",
-                 "subtext": "Search, add <path>, or delete <query>",
+                 "subtext": "Enter: Finder · Cmd: parent · Ctrl: terminal · Shift: copy",
                  "argumenttype": 1, "withspace": True, "alfredfiltersresults": False,
-                 "script": '/usr/bin/osascript -l JavaScript ./zoxide.js search "$1"',
+                 "script": '/usr/bin/osascript -l JavaScript ./zoxide.js browse "$1"',
                  "scriptargtype": 1, "type": 0, "escaping": 0,
                  "runningsubtext": "Searching zoxide…", "queuedelaymode": 0,
                  "queuedelaycustom": 1, "queuedelayimmediatelyinitially": True,
@@ -72,6 +82,7 @@ def build():
                         "lastpathcomponent": False, "removeextension": False}},
         ],
         "connections": {
+            DELETE_SEARCH: [{"destinationuid": ACTION, "modifiers": 0, "modifiersubtext": "Confirm removal from zoxide", "vitoclose": False}],
             ADD_SEARCH: [{"destinationuid": ADD_FOLDER, "modifiers": 0, "modifiersubtext": "", "vitoclose": False}],
             FILE_ACTION: [{"destinationuid": ADD_FOLDER, "modifiers": 0, "modifiersubtext": "", "vitoclose": False}],
             ADD_FOLDER: [{"destinationuid": NOTIFY, "modifiers": 0, "modifiersubtext": "", "vitoclose": False}],
@@ -79,9 +90,10 @@ def build():
             ACTION: [{"destinationuid": NOTIFY, "modifiers": 0, "modifiersubtext": "", "vitoclose": False}],
         },
         "uidata": {
+            DELETE_SEARCH: {"xpos": 60, "ypos": 600, "note": "Search existing records; confirmation before removal. Never deletes files."},
             ADD_SEARCH: {"xpos": 60, "ypos": 420},
             FILE_ACTION: {"xpos": 60, "ypos": 240}, ADD_FOLDER: {"xpos": 360, "ypos": 240},
-            FILTER: {"xpos": 60, "ypos": 60}, ACTION: {"xpos": 360, "ypos": 60},
+            FILTER: {"xpos": 60, "ypos": 60, "note": "Enter: Finder | Cmd: parent | Ctrl: terminal | Shift: copy"}, ACTION: {"xpos": 360, "ypos": 60},
             NOTIFY: {"xpos": 660, "ypos": 60},
         },
     }

@@ -11,7 +11,7 @@
 	<key>createdby</key>
 	<string>jmokos</string>
 	<key>version</key>
-	<string>1.3.0</string>
+	<string>1.4.0</string>
 	<key>disabled</key>
 	<false/>
 	<key>readme</key>
@@ -23,7 +23,8 @@ An Alfred workflow that uses **your installed macOS `zoxide` binary and its data
 
 - macOS and Alfred 5+ with the Powerpack (required for workflows).
 - Installed [zoxide](https://github.com/ajeetdsouza/zoxide), e.g. `brew install zoxide`.
-- Build with `python3 tools/build.py`, then open `dist/Zoxide.alfredworkflow` to import into Alfred.
+- Download **Zoxide.alfredworkflow** from the [latest release](https://github.com/jhnmks/zoxide_alfred/releases/latest) and open it to import into Alfred.
+- To build from source instead: run `python3 tools/build.py`, then open `dist/Zoxide.alfredworkflow`.
 - Click **Configure Workflow…** to choose your terminal and optionally override the binary or database directory.
 
 The workflow runs with macOS's built-in JavaScript for Automation (`osascript`); Node and Python are **not required after installation**. No shell plugin or shell initialization is needed. Python 3 is used only for packaging; Node is used only for tests.
@@ -43,6 +44,8 @@ The workflow runs with macOS's built-in JavaScript for Automation (`osascript`);
 - `z add` — Start searching for a folder to add.
 - `z delete project` — Find entries to remove; Enter asks for confirmation.
 - `z delete` — List all entries for removal, including unavailable folders.
+
+The workflow editor has separate inputs for `z` (search/open), `z add` (native folder-name search), and `z delete` (record-name search). Finder/parent/terminal/copy actions remain modifiers on `z` results. Delete intentionally uses a Script Filter backed by zoxide, not Spotlight, so only recorded entries—including missing folders—are offered.
 
 Deletion **only removes a zoxide record**, never the directory or its files. Cancel is the default confirmation button. Opening a folder records a visit using `zoxide add`, so its rank evolves with usage. Copying a path does not change its rank.
 
@@ -91,7 +94,7 @@ Tests cover command parsing, quoting, modifier output, packaging, and (on macOS 
 These are deliberately not enabled automatically: they require additional permissions or could change records in bulk.
 </string>
 	<key>webaddress</key>
-	<string></string>
+	<string>https://github.com/jhnmks/zoxide_alfred</string>
 	<key>variables</key>
 	<dict>
 		<key>terminal_app</key>
@@ -167,6 +170,47 @@ These are deliberately not enabled automatically: they require additional permis
 	</array>
 	<key>objects</key>
 	<array>
+		<dict>
+			<key>uid</key>
+			<string>92E22635-FF45-4E89-A2B0-F2755FAFC177</string>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>version</key>
+			<integer>3</integer>
+			<key>config</key>
+			<dict>
+				<key>keyword</key>
+				<string>z delete</string>
+				<key>title</key>
+				<string>Remove a folder from zoxide</string>
+				<key>subtext</key>
+				<string>Search recorded folders by name — files are never deleted</string>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>withspace</key>
+				<true/>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>script</key>
+				<string>/usr/bin/osascript -l JavaScript ./zoxide.js delete-search "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>type</key>
+				<integer>0</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>runningsubtext</key>
+				<string>Searching zoxide records…</string>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuedelaycustom</key>
+				<integer>1</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuemode</key>
+				<integer>1</integer>
+			</dict>
+		</dict>
 		<dict>
 			<key>uid</key>
 			<string>127EC551-CF84-4CF7-B0EA-B4CA641DFBC6</string>
@@ -271,7 +315,7 @@ These are deliberately not enabled automatically: they require additional permis
 				<key>title</key>
 				<string>Zoxide — search folders</string>
 				<key>subtext</key>
-				<string>Search, add &lt;path&gt;, or delete &lt;query&gt;</string>
+				<string>Enter: Finder · Cmd: parent · Ctrl: terminal · Shift: copy</string>
 				<key>argumenttype</key>
 				<integer>1</integer>
 				<key>withspace</key>
@@ -279,7 +323,7 @@ These are deliberately not enabled automatically: they require additional permis
 				<key>alfredfiltersresults</key>
 				<false/>
 				<key>script</key>
-				<string>/usr/bin/osascript -l JavaScript ./zoxide.js search "$1"</string>
+				<string>/usr/bin/osascript -l JavaScript ./zoxide.js browse "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>type</key>
@@ -341,6 +385,19 @@ These are deliberately not enabled automatically: they require additional permis
 	</array>
 	<key>connections</key>
 	<dict>
+		<key>92E22635-FF45-4E89-A2B0-F2755FAFC177</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>A671DAA1-3A25-4190-A9E8-82A26C46366D</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string>Confirm removal from zoxide</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 		<key>127EC551-CF84-4CF7-B0EA-B4CA641DFBC6</key>
 		<array>
 			<dict>
@@ -409,6 +466,15 @@ These are deliberately not enabled automatically: they require additional permis
 	</dict>
 	<key>uidata</key>
 	<dict>
+		<key>92E22635-FF45-4E89-A2B0-F2755FAFC177</key>
+		<dict>
+			<key>xpos</key>
+			<integer>60</integer>
+			<key>ypos</key>
+			<integer>600</integer>
+			<key>note</key>
+			<string>Search existing records; confirmation before removal. Never deletes files.</string>
+		</dict>
 		<key>127EC551-CF84-4CF7-B0EA-B4CA641DFBC6</key>
 		<dict>
 			<key>xpos</key>
@@ -436,6 +502,8 @@ These are deliberately not enabled automatically: they require additional permis
 			<integer>60</integer>
 			<key>ypos</key>
 			<integer>60</integer>
+			<key>note</key>
+			<string>Enter: Finder | Cmd: parent | Ctrl: terminal | Shift: copy</string>
 		</dict>
 		<key>A671DAA1-3A25-4190-A9E8-82A26C46366D</key>
 		<dict>

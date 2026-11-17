@@ -47,7 +47,11 @@ test('builder creates a valid plist and installable archive', () => {
         'from pathlib import Path',
         'p = plistlib.loads(Path("workflow/info.plist").read_bytes())',
         'assert p["bundleid"] == "io.github.zoxide-alfred"',
-        'assert len(p["objects"]) == 6',
+        'assert len(p["objects"]) == 7',
+                'delete = next(o for o in p["objects"] if o.get("config", {}).get("keyword") == "z delete")',
+                'assert delete["type"] == "alfred.workflow.input.scriptfilter"',
+                'assert "delete-search" in delete["config"]["script"]',
+                'assert p["connections"][delete["uid"]]',
                 'search = next(o for o in p["objects"] if o["type"] == "alfred.workflow.input.filefilter")',
                 'assert search["config"]["keyword"] == "z add"',
                 'assert search["config"]["types"] == ["public.folder"]',
@@ -113,7 +117,10 @@ test('real JXA uses isolated installed zoxide, supports add/search and errors', 
         execFileSync(binary, ['remove', '--', second], {env});
         assert.deepEqual(JSON.parse(invoke('search', 'add')).items, []);
                 assert.deepEqual(JSON.parse(invoke('search', 'add Projects')).items, []);
-        const deleted = JSON.parse(invoke('search', 'delete folder')).items[0];
+        assert.deepEqual(JSON.parse(invoke('browse', 'delete folder')).items, []);
+                assert.deepEqual(JSON.parse(invoke('browse', 'add Projects')).items, []);
+                assert.equal(JSON.parse(invoke('browse', 'folder')).items.length, 1);
+                const deleted = JSON.parse(invoke('delete-search', 'folder')).items[0];
         assert.equal(JSON.parse(deleted.arg).action, 'remove');
         const invalid = JSON.parse(invoke('search', '', {zoxide_path: '/no/zoxide'}));
         assert.equal(invalid.items[0].title, 'Zoxide needs attention');

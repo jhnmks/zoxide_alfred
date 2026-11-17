@@ -145,6 +145,11 @@ function run(argv) {
     try {
         var api = runtime();
         if (argv[0] === 'add-path') return api.action(payload('add', argv[1]));
+        if (argv[0] === 'delete-search') return JSON.stringify(api.search('delete ' + (argv[1] || '')));
+        if (argv[0] === 'browse' && /^delete(?:\s|$)/.test((argv[1] || '').trim())) {
+            // Dedicated inputs own these keywords; don't show duplicate results.
+            return JSON.stringify({items: []});
+        }
         return argv[0] === 'action' ? api.action(argv[1]) : JSON.stringify(api.search(argv[1] || ''));
     } catch (error) {
         var message = String(error.message || error);
