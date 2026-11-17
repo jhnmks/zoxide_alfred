@@ -11,7 +11,7 @@
 	<key>createdby</key>
 	<string>jmokos</string>
 	<key>version</key>
-	<string>1.4.0</string>
+	<string>1.5.0</string>
 	<key>disabled</key>
 	<false/>
 	<key>readme</key>
@@ -49,7 +49,19 @@ The workflow editor has separate inputs for `z` (search/open), `z add` (native f
 
 Deletion **only removes a zoxide record**, never the directory or its files. Cancel is the default confirmation button. Opening a folder records a visit using `zoxide add`, so its rank evolves with usage. Copying a path does not change its rank.
 
-`add` and `delete` are reserved as the first word. Use another part of a folder's path to search for folders with those names. Search terms are split on whitespace and passed literally to zoxide; shell syntax and environment variables are not evaluated. Adding by name uses Alfred's Spotlight-backed File Filter and searches indexed folders, including ones not yet in zoxide. Hidden or Spotlight-excluded folders may not appear; use an absolute path, `~/…`, or the Finder Universal Action for those. Newlines in directory names are unsupported by zoxide's line-oriented query output.
+`add`, `remove`, and `delete` are reserved as the first word. Use another part of a folder's path to search for folders with those names. Search terms are split on whitespace and passed literally to zoxide; shell syntax and environment variables are not evaluated. Adding by name uses Alfred's Spotlight-backed File Filter and searches indexed folders, including ones not yet in zoxide. Hidden or Spotlight-excluded folders may not appear; use an absolute path, `~/…`, or the Finder Universal Action for those. Newlines in directory names are unsupported by zoxide's line-oriented query output.
+
+## Remove several records with Alfred's File Buffer
+
+1. Type `z remove` or `z remove project` (`z delete` remains an alias).
+2. Highlight a folder and press **Option-Down** to put it in Alfred's File Buffer and move to the next result. **Option-Up** adds without moving.
+3. Repeat for the folders you want to remove. You can change the search to find other records without clearing the buffer.
+4. Press **Option-Right** to action the buffer, then choose **Remove from zoxide**.
+5. Review the paths and confirm **Remove** once for the batch. **Cancel** changes nothing.
+
+**Option-Left** removes the last buffered item; **Option-Backspace** clears the buffer. These shortcuts are configurable in Alfred Preferences → Features → File Search → Buffer. Clear the buffer before starting if it contains unrelated items.
+
+Plain Enter on a `z remove` result still removes just that record after confirmation. Batch removal deduplicates paths and reports individual failures without deleting files. Existing folders selected together in Finder can also use the **Remove from zoxide** Universal Action. Stale records are displayed with `file:skipcheck`, but Alfred may not allow nonexistent folders into its native File Buffer; use plain Enter for those.
 
 ## Add from Finder (Universal Action)
 
@@ -172,6 +184,46 @@ These are deliberately not enabled automatically: they require additional permis
 	<array>
 		<dict>
 			<key>uid</key>
+			<string>3952CCB7-BB81-453B-96CA-C982C39C1802</string>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>version</key>
+			<integer>1</integer>
+			<key>config</key>
+			<dict>
+				<key>name</key>
+				<string>Remove from zoxide</string>
+				<key>acceptsfiles</key>
+				<true/>
+				<key>acceptstext</key>
+				<false/>
+				<key>acceptsurls</key>
+				<false/>
+				<key>acceptsmulti</key>
+				<integer>1</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>uid</key>
+			<string>9AB981EB-18A0-4390-99E9-66D0EFCDE6A1</string>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>version</key>
+			<integer>2</integer>
+			<key>config</key>
+			<dict>
+				<key>script</key>
+				<string>/usr/bin/osascript -l JavaScript ./zoxide.js remove-paths "$@"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>type</key>
+				<integer>0</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>uid</key>
 			<string>92E22635-FF45-4E89-A2B0-F2755FAFC177</string>
 			<key>type</key>
 			<string>alfred.workflow.input.scriptfilter</string>
@@ -180,7 +232,7 @@ These are deliberately not enabled automatically: they require additional permis
 			<key>config</key>
 			<dict>
 				<key>keyword</key>
-				<string>z delete</string>
+				<string>z remove||z delete</string>
 				<key>title</key>
 				<string>Remove a folder from zoxide</string>
 				<key>subtext</key>
@@ -385,11 +437,37 @@ These are deliberately not enabled automatically: they require additional permis
 	</array>
 	<key>connections</key>
 	<dict>
+		<key>3952CCB7-BB81-453B-96CA-C982C39C1802</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>9AB981EB-18A0-4390-99E9-66D0EFCDE6A1</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>9AB981EB-18A0-4390-99E9-66D0EFCDE6A1</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>530ED2E5-D251-41C0-A7FC-C9B39F926681</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 		<key>92E22635-FF45-4E89-A2B0-F2755FAFC177</key>
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>A671DAA1-3A25-4190-A9E8-82A26C46366D</string>
+				<string>9AB981EB-18A0-4390-99E9-66D0EFCDE6A1</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -466,6 +544,20 @@ These are deliberately not enabled automatically: they require additional permis
 	</dict>
 	<key>uidata</key>
 	<dict>
+		<key>3952CCB7-BB81-453B-96CA-C982C39C1802</key>
+		<dict>
+			<key>xpos</key>
+			<integer>60</integer>
+			<key>ypos</key>
+			<integer>780</integer>
+		</dict>
+		<key>9AB981EB-18A0-4390-99E9-66D0EFCDE6A1</key>
+		<dict>
+			<key>xpos</key>
+			<integer>360</integer>
+			<key>ypos</key>
+			<integer>600</integer>
+		</dict>
 		<key>92E22635-FF45-4E89-A2B0-F2755FAFC177</key>
 		<dict>
 			<key>xpos</key>

@@ -14,6 +14,8 @@ FILE_ACTION = "6A89B2AF-096D-4AB8-8850-901E7389D826"
 ADD_FOLDER = "A6D23031-E68B-4587-969D-EFCD0B0FF74C"
 ADD_SEARCH = "127EC551-CF84-4CF7-B0EA-B4CA641DFBC6"
 DELETE_SEARCH = "92E22635-FF45-4E89-A2B0-F2755FAFC177"
+REMOVE_ACTION = "3952CCB7-BB81-453B-96CA-C982C39C1802"
+REMOVE_SCRIPT = "9AB981EB-18A0-4390-99E9-66D0EFCDE6A1"
 
 
 def build():
@@ -23,7 +25,7 @@ def build():
         "name": "Zoxide",
         "description": "Search, open, add, and remove folders using your installed zoxide.",
         "createdby": "jmokos",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "disabled": False,
         "readme": readme,
         "webaddress": "https://github.com/jhnmks/zoxide_alfred",
@@ -41,8 +43,14 @@ def build():
              "config": {"default": "", "required": False, "filtermode": 1, "placeholder": "Use existing zoxide database"}},
         ],
         "objects": [
+            {"uid": REMOVE_ACTION, "type": "alfred.workflow.trigger.universalaction", "version": 1,
+             "config": {"name": "Remove from zoxide", "acceptsfiles": True,
+                        "acceptstext": False, "acceptsurls": False, "acceptsmulti": 1}},
+            {"uid": REMOVE_SCRIPT, "type": "alfred.workflow.action.script", "version": 2,
+             "config": {"script": '/usr/bin/osascript -l JavaScript ./zoxide.js remove-paths "$@"',
+                        "scriptargtype": 1, "type": 0, "escaping": 0}},
             {"uid": DELETE_SEARCH, "type": "alfred.workflow.input.scriptfilter", "version": 3,
-             "config": {"keyword": "z delete", "title": "Remove a folder from zoxide",
+             "config": {"keyword": "z remove||z delete", "title": "Remove a folder from zoxide",
                         "subtext": "Search recorded folders by name — files are never deleted",
                         "argumenttype": 1, "withspace": True, "alfredfiltersresults": False,
                         "script": '/usr/bin/osascript -l JavaScript ./zoxide.js delete-search "$1"',
@@ -82,7 +90,9 @@ def build():
                         "lastpathcomponent": False, "removeextension": False}},
         ],
         "connections": {
-            DELETE_SEARCH: [{"destinationuid": ACTION, "modifiers": 0, "modifiersubtext": "Confirm removal from zoxide", "vitoclose": False}],
+            REMOVE_ACTION: [{"destinationuid": REMOVE_SCRIPT, "modifiers": 0, "modifiersubtext": "", "vitoclose": False}],
+            REMOVE_SCRIPT: [{"destinationuid": NOTIFY, "modifiers": 0, "modifiersubtext": "", "vitoclose": False}],
+            DELETE_SEARCH: [{"destinationuid": REMOVE_SCRIPT, "modifiers": 0, "modifiersubtext": "Confirm removal from zoxide", "vitoclose": False}],
             ADD_SEARCH: [{"destinationuid": ADD_FOLDER, "modifiers": 0, "modifiersubtext": "", "vitoclose": False}],
             FILE_ACTION: [{"destinationuid": ADD_FOLDER, "modifiers": 0, "modifiersubtext": "", "vitoclose": False}],
             ADD_FOLDER: [{"destinationuid": NOTIFY, "modifiers": 0, "modifiersubtext": "", "vitoclose": False}],
@@ -90,6 +100,8 @@ def build():
             ACTION: [{"destinationuid": NOTIFY, "modifiers": 0, "modifiersubtext": "", "vitoclose": False}],
         },
         "uidata": {
+            REMOVE_ACTION: {"xpos": 60, "ypos": 780},
+            REMOVE_SCRIPT: {"xpos": 360, "ypos": 600},
             DELETE_SEARCH: {"xpos": 60, "ypos": 600, "note": "Search existing records; confirmation before removal. Never deletes files."},
             ADD_SEARCH: {"xpos": 60, "ypos": 420},
             FILE_ACTION: {"xpos": 60, "ypos": 240}, ADD_FOLDER: {"xpos": 360, "ypos": 240},

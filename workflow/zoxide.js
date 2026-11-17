@@ -2,6 +2,22 @@
 
 function quote(value) { return "'" + String(value).replace(/'/g, "'\\''") + "'"; }
 function payload(action, path) { return JSON.stringify({action: action, path: path}); }
+function removeBatch(paths, confirm, remove) {
+    var unique = [];
+    paths.forEach(function (path) {
+        if (typeof path !== 'string' || path[0] !== '/') throw new Error('An absolute folder path is required.');
+        if (unique.indexOf(path) < 0) unique.push(path);
+    });
+    if (!unique.length) throw new Error('Select at least one zoxide record to remove.');
+    if (!confirm(unique)) return '';
+    var failures = [], removed = 0;
+    unique.forEach(function (path) {
+        try { remove(path); removed++; }
+        catch (error) { failures.push(path + ': ' + String(error.message || error)); }
+    });
+    return 'Removed ' + removed + ' zoxide record(s). No files deleted.' +
+        (failures.length ? '\nFailed (' + failures.length + '):\n' + failures.join('\n') : '');
+}
 function parseQuery(query) {
     var match = String(query || '').trim().match(/^(add|delete)(?:\s+(.*))?$/);
     return match ? {mode: match[1], text: (match[2] || '').trim()} :
@@ -18,7 +34,11 @@ function folderItem(path, deleting) {
         arg: payload(deleting ? 'remove' : 'open', path),
         icon: {type: 'fileicon', path: path}, text: {copy: path, largetype: path},
         quicklookurl: path, action: {file: path}};
-    if (deleting) item.subtitle = 'Remove from zoxide only (confirmation required): ' + path;
+    if (deleting) {
+            item.type = 'file:skipcheck';
+            item.arg = path;
+            item.subtitle = 'Enter: remove record · ⌥↓: add to buffer · ⌥→: action buffer — ' + path;
+        }
     else item.mods = {
         cmd: {arg: payload('parent', path), subtitle: 'Open parent folder in Finder'},
         ctrl: {arg: payload('terminal', path), subtitle: 'Open in configured terminal'},
@@ -139,23 +159,37 @@ function runtime() {
         zoxide(['add', '--', path]);
         return '';
     }
-    return {search: search, action: action};
+    function removePaths(paths) {
+        return removeBatch(paths, function (selected) {
+            try {
+                app.displayDialog('Remove ' + selected.length + ' record(s) from zoxide?\n\n' +
+                    selected.join('\n') + '\n\nNo files will be deleted.',
+                    {buttons: ['Cancel', 'Remove'], defaultButton: 'Cancel', cancelButton: 'Cancel'});
+                return true;
+            } catch (error) {
+                if (error.errorNumber === -128 || String(error).indexOf('canceled') >= 0) return false;
+                throw error;
+            }
+        }, function (path) { zoxide(['remove', '--', path]); });
+    }
+    return {search: search, action: action, removePaths: removePaths};
 }
 function run(argv) {
     try {
         var api = runtime();
+        if (argv[0] === 'remove-paths') return api.removePaths(argv.slice(1));
         if (argv[0] === 'add-path') return api.action(payload('add', argv[1]));
         if (argv[0] === 'delete-search') return JSON.stringify(api.search('delete ' + (argv[1] || '')));
-        if (argv[0] === 'browse' && /^delete(?:\s|$)/.test((argv[1] || '').trim())) {
+        if (argv[0] === 'browse' && /^(?:delete|remove)(?:\s|$)/.test((argv[1] || '').trim())) {
             // Dedicated inputs own these keywords; don't show duplicate results.
             return JSON.stringify({items: []});
         }
         return argv[0] === 'action' ? api.action(argv[1]) : JSON.stringify(api.search(argv[1] || ''));
     } catch (error) {
         var message = String(error.message || error);
-        return argv[0] === 'action' || argv[0] === 'add-path' ? 'Zoxide: ' + message : JSON.stringify({items: [
+        return argv[0] === 'action' || argv[0] === 'add-path' || argv[0] === 'remove-paths' ? 'Zoxide: ' + message : JSON.stringify({items: [
             {title: 'Zoxide needs attention', subtitle: message, valid: false}
         ]});
     }
 }
-if (typeof module !== 'undefined') module.exports = {quote: quote, parseQuery: parseQuery, expandPath: expandPath, folderItem: folderItem};
+if (typeof module !== 'undefined') module.exports = {quote: quote, parseQuery: parseQuery, expandPath: expandPath, folderItem: folderItem, removeBatch: removeBatch};

@@ -5,7 +5,7 @@ const {execFileSync} = require('node:child_process');
 const {mkdtempSync, mkdirSync, rmSync, existsSync} = require('node:fs');
 const {tmpdir} = require('node:os');
 const {join, resolve} = require('node:path');
-const {quote, parseQuery, expandPath, folderItem} = require('../workflow/zoxide.js');
+const {quote, parseQuery, expandPath, folderItem, removeBatch} = require('../workflow/zoxide.js');
 
 test('shell quoting preserves special characters without evaluation', () => {
     for (const path of ["/tmp/it's a folder", '/tmp/$(touch nope); & "hi"', '/tmp/a\nb', '/tmp/é 📁']) {
@@ -34,8 +34,26 @@ test('modifier payloads and deletion use distinct safe actions', () => {
     assert.equal(item.uid, undefined, 'preserve zoxide rank, not Alfred learning');
     assert.equal(item.text.copy, path);
     const deleted = folderItem(path, true);
-    assert.equal(JSON.parse(deleted.arg).action, 'remove');
+    assert.equal(deleted.arg, path);
+    assert.equal(deleted.type, 'file:skipcheck');
     assert.equal(deleted.mods, undefined);
+});
+
+test('batch removal confirms once, deduplicates, cancels safely, and reports partial failures', () => {
+    const removed = [];
+    let confirmations = 0;
+    const result = removeBatch(['/tmp/a', '/tmp/b', '/tmp/a'], paths => {
+        confirmations++;
+        assert.deepEqual(paths, ['/tmp/a', '/tmp/b']);
+        return true;
+    }, path => { if (path === '/tmp/b') throw new Error('not recorded'); removed.push(path); });
+    assert.equal(confirmations, 1);
+    assert.deepEqual(removed, ['/tmp/a']);
+    assert.match(result, /Removed 1/);
+    assert.match(result, /Failed \(1\)/);
+    assert.equal(removeBatch(['/tmp/a'], () => false, () => assert.fail('cancelled')), '');
+    assert.throws(() => removeBatch(['/tmp/a', 'relative'], () => assert.fail('invalid'), () => {}), /absolute/);
+    assert.throws(() => removeBatch([], () => true, () => {}), /at least one/);
 });
 
 test('builder creates a valid plist and installable archive', () => {
@@ -47,16 +65,19 @@ test('builder creates a valid plist and installable archive', () => {
         'from pathlib import Path',
         'p = plistlib.loads(Path("workflow/info.plist").read_bytes())',
         'assert p["bundleid"] == "io.github.zoxide-alfred"',
-        'assert len(p["objects"]) == 7',
-                'delete = next(o for o in p["objects"] if o.get("config", {}).get("keyword") == "z delete")',
+        'assert len(p["objects"]) == 9',
+                'delete = next(o for o in p["objects"] if o.get("config", {}).get("keyword") == "z remove||z delete")',
                 'assert delete["type"] == "alfred.workflow.input.scriptfilter"',
                 'assert "delete-search" in delete["config"]["script"]',
                 'assert p["connections"][delete["uid"]]',
                 'search = next(o for o in p["objects"] if o["type"] == "alfred.workflow.input.filefilter")',
                 'assert search["config"]["keyword"] == "z add"',
                 'assert search["config"]["types"] == ["public.folder"]',
-                'assert p["connections"][search["uid"]][0]["destinationuid"] == p["connections"][next(o["uid"] for o in p["objects"] if o["type"] == "alfred.workflow.trigger.universalaction")][0]["destinationuid"]',
-        'ua = next(o for o in p["objects"] if o["type"] == "alfred.workflow.trigger.universalaction")',
+                'assert p["connections"][search["uid"]][0]["destinationuid"] == p["connections"][next(o["uid"] for o in p["objects"] if o.get("config", {}).get("name") == "Add to zoxide")][0]["destinationuid"]',
+        'ua = next(o for o in p["objects"] if o.get("config", {}).get("name") == "Add to zoxide")',
+                'batch = next(o for o in p["objects"] if o.get("config", {}).get("name") == "Remove from zoxide")',
+                'assert batch["config"]["acceptsmulti"] == 1',
+                'assert p["connections"][batch["uid"]][0]["destinationuid"] == p["connections"][delete["uid"]][0]["destinationuid"]',
         'assert ua["config"] == {"name": "Add to zoxide", "acceptsfiles": True, "acceptstext": False, "acceptsurls": False, "acceptsmulti": 0}',
         'assert "_ZO_DATA_DIR" not in p["variables"]',
         'controls = {c["variable"]: c for c in p["userconfigurationconfig"]}',
@@ -121,7 +142,7 @@ test('real JXA uses isolated installed zoxide, supports add/search and errors', 
                 assert.deepEqual(JSON.parse(invoke('browse', 'add Projects')).items, []);
                 assert.equal(JSON.parse(invoke('browse', 'folder')).items.length, 1);
                 const deleted = JSON.parse(invoke('delete-search', 'folder')).items[0];
-        assert.equal(JSON.parse(deleted.arg).action, 'remove');
+        assert.equal(deleted.arg, path);
         const invalid = JSON.parse(invoke('search', '', {zoxide_path: '/no/zoxide'}));
         assert.equal(invalid.items[0].title, 'Zoxide needs attention');
         assert.match(invalid.items[0].subtitle, /Install zoxide/);

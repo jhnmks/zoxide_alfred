@@ -32,7 +32,19 @@ The workflow editor has separate inputs for `z` (search/open), `z add` (native f
 
 Deletion **only removes a zoxide record**, never the directory or its files. Cancel is the default confirmation button. Opening a folder records a visit using `zoxide add`, so its rank evolves with usage. Copying a path does not change its rank.
 
-`add` and `delete` are reserved as the first word. Use another part of a folder's path to search for folders with those names. Search terms are split on whitespace and passed literally to zoxide; shell syntax and environment variables are not evaluated. Adding by name uses Alfred's Spotlight-backed File Filter and searches indexed folders, including ones not yet in zoxide. Hidden or Spotlight-excluded folders may not appear; use an absolute path, `~/…`, or the Finder Universal Action for those. Newlines in directory names are unsupported by zoxide's line-oriented query output.
+`add`, `remove`, and `delete` are reserved as the first word. Use another part of a folder's path to search for folders with those names. Search terms are split on whitespace and passed literally to zoxide; shell syntax and environment variables are not evaluated. Adding by name uses Alfred's Spotlight-backed File Filter and searches indexed folders, including ones not yet in zoxide. Hidden or Spotlight-excluded folders may not appear; use an absolute path, `~/…`, or the Finder Universal Action for those. Newlines in directory names are unsupported by zoxide's line-oriented query output.
+
+## Remove several records with Alfred's File Buffer
+
+1. Type `z remove` or `z remove project` (`z delete` remains an alias).
+2. Highlight a folder and press **Option-Down** to put it in Alfred's File Buffer and move to the next result. **Option-Up** adds without moving.
+3. Repeat for the folders you want to remove. You can change the search to find other records without clearing the buffer.
+4. Press **Option-Right** to action the buffer, then choose **Remove from zoxide**.
+5. Review the paths and confirm **Remove** once for the batch. **Cancel** changes nothing.
+
+**Option-Left** removes the last buffered item; **Option-Backspace** clears the buffer. These shortcuts are configurable in Alfred Preferences → Features → File Search → Buffer. Clear the buffer before starting if it contains unrelated items.
+
+Plain Enter on a `z remove` result still removes just that record after confirmation. Batch removal deduplicates paths and reports individual failures without deleting files. Existing folders selected together in Finder can also use the **Remove from zoxide** Universal Action. Stale records are displayed with `file:skipcheck`, but Alfred may not allow nonexistent folders into its native File Buffer; use plain Enter for those.
 
 ## Add from Finder (Universal Action)
 
