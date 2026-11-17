@@ -1,0 +1,456 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string>io.github.zoxide-alfred</string>
+	<key>name</key>
+	<string>Zoxide</string>
+	<key>description</key>
+	<string>Search, open, add, and remove folders using your installed zoxide.</string>
+	<key>createdby</key>
+	<string>jmokos</string>
+	<key>version</key>
+	<string>1.3.0</string>
+	<key>disabled</key>
+	<false/>
+	<key>readme</key>
+	<string># Zoxide for Alfred
+
+An Alfred workflow that uses **your installed macOS `zoxide` binary and its database**, not a bundled copy or a separate index.
+
+## Requirements and installation
+
+- macOS and Alfred 5+ with the Powerpack (required for workflows).
+- Installed [zoxide](https://github.com/ajeetdsouza/zoxide), e.g. `brew install zoxide`.
+- Build with `python3 tools/build.py`, then open `dist/Zoxide.alfredworkflow` to import into Alfred.
+- Click **Configure Workflow…** to choose your terminal and optionally override the binary or database directory.
+
+The workflow runs with macOS's built-in JavaScript for Automation (`osascript`); Node and Python are **not required after installation**. No shell plugin or shell initialization is needed. Python 3 is used only for packaging; Node is used only for tests.
+
+## Usage
+
+- `z` — List folders already recorded by your installed zoxide, in ranking order. No re-adding or importing is needed.
+- `z project` — Search with zoxide's native matching.
+- `z work api` — Match multiple keywords.
+- **Enter** — Open selected folder in Finder.
+- **Cmd-Enter** — Open its parent folder in Finder.
+- **Ctrl-Enter** — Open folder in configured terminal.
+- **Shift-Enter** — Copy absolute folder path.
+- **Cmd-C** — Copy absolute folder path using Alfred's copy action.
+- `z add ~/Projects/my app` — Add an existing folder (spaces supported, quotes optional).
+- `z add Projects` — Search folders by name using Alfred's native folder search. Select a result and press Enter to add it; no full path needed.
+- `z add` — Start searching for a folder to add.
+- `z delete project` — Find entries to remove; Enter asks for confirmation.
+- `z delete` — List all entries for removal, including unavailable folders.
+
+Deletion **only removes a zoxide record**, never the directory or its files. Cancel is the default confirmation button. Opening a folder records a visit using `zoxide add`, so its rank evolves with usage. Copying a path does not change its rank.
+
+`add` and `delete` are reserved as the first word. Use another part of a folder's path to search for folders with those names. Search terms are split on whitespace and passed literally to zoxide; shell syntax and environment variables are not evaluated. Adding by name uses Alfred's Spotlight-backed File Filter and searches indexed folders, including ones not yet in zoxide. Hidden or Spotlight-excluded folders may not appear; use an absolute path, `~/…`, or the Finder Universal Action for those. Newlines in directory names are unsupported by zoxide's line-oriented query output.
+
+## Add from Finder (Universal Action)
+
+Select a single folder in Finder, invoke Alfred's **Universal Actions** hotkey (configure it in Alfred Preferences → Features → Universal Actions), and choose **Add to zoxide**. You can also action a folder result inside Alfred and select **Add to zoxide**.
+
+The action accepts one selection at a time. Alfred's file Universal Actions include both files and folders, so it may also appear for files; the action checks the selection and rejects anything that is not an existing folder. It uses the same configured binary and database as `z add`, checks that the folder exists, and shows a notification after adding it. It does not need Finder scripting or additional Automation permissions.
+
+## Settings
+
+All three settings use Alfred's native **file picker**, opening the standard macOS browsing dialog. Use Cmd-Shift-G to enter a path and Cmd-Shift-. to show hidden files. Folder creation and search are provided where available by the system dialog; do not create a new database folder if you want to use existing records.
+
+- **Terminal application:** choose your installed terminal `.app` using the picker. Leave blank to preserve the previous terminal choice, or use Terminal on a fresh installation. Terminal and iTerm2 receive a safely quoted `cd` command in a new session. Other applications (including Warp and Ghostty) use macOS's open-folder handler; behavior depends on the application's version and configuration.
+- **Zoxide binary:** optional file picker for your installed executable; leave blank for auto-detection. Default locations are `/opt/homebrew/bin/zoxide`, `/usr/local/bin/zoxide`, `~/.local/bin/zoxide`, and `~/.cargo/bin/zoxide`. No login shell is launched, so custom shell aliases and PATH changes are not used.
+- **Zoxide data directory:** optional folder picker; leave empty to use the existing default zoxide database. Blank overrides are removed from the zoxide subprocess environment, not treated as a separate database. If your shell sets `_ZO_DATA_DIR`, set the same **absolute path** here. Alfred does not inherit interactive shell configuration. Advanced zoxide settings (`_ZO_EXCLUDE_DIRS`, `_ZO_MAXAGE`, `_ZO_RESOLVE_SYMLINKS`) may also be supplied as workflow environment variables.
+
+macOS may prompt for Automation access when controlling Terminal or iTerm2. Allow it under **System Settings → Privacy &amp; Security → Automation**. Missing binaries and other errors appear in Alfred's results or a notification. Use Alfred's workflow debugger if notifications are disabled.
+
+## Development
+
+```sh
+node --test tests/*.test.js
+python3 tools/build.py
+plutil -lint workflow/info.plist
+```
+
+Tests cover command parsing, quoting, modifier output, packaging, and (on macOS with zoxide installed) real JXA/zoxide queries and writes against a temporary isolated database. They never change your normal zoxide database. GUI interactions and terminal integration require a manual smoke test in Alfred after import:
+
+1. Configure the terminal and binary path.
+2. Add a temporary folder using a typed path, `z add` folder-name search, and Finder's **Add to zoxide** Universal Action. Check that a file selection is rejected without adding a record and multiple selections are not accepted.
+3. Search for it, test Enter and all three modifiers.
+4. Delete the record, cancel once, then confirm. Verify the directory still exists.
+5. Test empty results, an unavailable binary path, and an unavailable folder in `z delete`.
+
+`workflow/info.plist` is generated by `tools/build.py`; change the builder rather than editing the plist directly. The build archive is in `dist/` (ignored by Git).
+
+## Possible next features
+
+
+- Per-folder terminal profiles or editor actions.
+- An opt-in bulk cleanup action for stale records, with preview and confirmation.
+
+These are deliberately not enabled automatically: they require additional permissions or could change records in bulk.
+</string>
+	<key>webaddress</key>
+	<string></string>
+	<key>variables</key>
+	<dict>
+		<key>terminal_app</key>
+		<string></string>
+		<key>zoxide_path</key>
+		<string></string>
+	</dict>
+	<key>userconfigurationconfig</key>
+	<array>
+		<dict>
+			<key>type</key>
+			<string>filepicker</string>
+			<key>variable</key>
+			<string>terminal_app</string>
+			<key>label</key>
+			<string>Preferred terminal application</string>
+			<key>description</key>
+			<string>Choose an installed terminal .app with the macOS file picker. Blank preserves your previous terminal choice or uses Terminal.</string>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string></string>
+				<key>filtermode</key>
+				<integer>0</integer>
+				<key>required</key>
+				<false/>
+				<key>placeholder</key>
+				<string>Choose terminal application…</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>type</key>
+			<string>filepicker</string>
+			<key>variable</key>
+			<string>zoxide_path</string>
+			<key>label</key>
+			<string>Zoxide binary (optional)</string>
+			<key>description</key>
+			<string>Absolute path to your installed zoxide. Homebrew, ~/.local/bin, and ~/.cargo/bin are detected automatically.</string>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string></string>
+				<key>required</key>
+				<false/>
+				<key>filtermode</key>
+				<integer>0</integer>
+				<key>placeholder</key>
+				<string>Auto-detect installed zoxide</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>type</key>
+			<string>filepicker</string>
+			<key>variable</key>
+			<string>_ZO_DATA_DIR</string>
+			<key>label</key>
+			<string>Zoxide data directory (optional)</string>
+			<key>description</key>
+			<string>Leave empty for zoxide's default database. If your shell sets _ZO_DATA_DIR, enter the same absolute path here.</string>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string></string>
+				<key>required</key>
+				<false/>
+				<key>filtermode</key>
+				<integer>1</integer>
+				<key>placeholder</key>
+				<string>Use existing zoxide database</string>
+			</dict>
+		</dict>
+	</array>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>uid</key>
+			<string>127EC551-CF84-4CF7-B0EA-B4CA641DFBC6</string>
+			<key>type</key>
+			<string>alfred.workflow.input.filefilter</string>
+			<key>version</key>
+			<integer>0</integer>
+			<key>config</key>
+			<dict>
+				<key>keyword</key>
+				<string>z add</string>
+				<key>title</key>
+				<string>Add a folder to zoxide</string>
+				<key>subtext</key>
+				<string>Type a folder name, then press Enter to add it</string>
+				<key>runningsubtext</key>
+				<string>Searching folders…</string>
+				<key>argumenttype</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+				<key>anchorfields</key>
+				<true/>
+				<key>daterange</key>
+				<integer>0</integer>
+				<key>fields</key>
+				<array>
+					<dict>
+						<key>field</key>
+						<string>kMDItemDisplayName</string>
+						<key>not</key>
+						<false/>
+						<key>split</key>
+						<true/>
+						<key>value</key>
+						<string>{query}</string>
+						<key>words</key>
+						<true/>
+					</dict>
+				</array>
+				<key>includesystem</key>
+				<false/>
+				<key>scopes</key>
+				<array/>
+				<key>types</key>
+				<array>
+					<string>public.folder</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>uid</key>
+			<string>6A89B2AF-096D-4AB8-8850-901E7389D826</string>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>version</key>
+			<integer>1</integer>
+			<key>config</key>
+			<dict>
+				<key>name</key>
+				<string>Add to zoxide</string>
+				<key>acceptsfiles</key>
+				<true/>
+				<key>acceptstext</key>
+				<false/>
+				<key>acceptsurls</key>
+				<false/>
+				<key>acceptsmulti</key>
+				<integer>0</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>uid</key>
+			<string>A6D23031-E68B-4587-969D-EFCD0B0FF74C</string>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>version</key>
+			<integer>2</integer>
+			<key>config</key>
+			<dict>
+				<key>script</key>
+				<string>/usr/bin/osascript -l JavaScript ./zoxide.js add-path "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>type</key>
+				<integer>0</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>uid</key>
+			<string>38D1A3C6-5A26-44BD-9DD7-89D19EAA578A</string>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>version</key>
+			<integer>3</integer>
+			<key>config</key>
+			<dict>
+				<key>keyword</key>
+				<string>z</string>
+				<key>title</key>
+				<string>Zoxide — search folders</string>
+				<key>subtext</key>
+				<string>Search, add &lt;path&gt;, or delete &lt;query&gt;</string>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>withspace</key>
+				<true/>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>script</key>
+				<string>/usr/bin/osascript -l JavaScript ./zoxide.js search "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>type</key>
+				<integer>0</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>runningsubtext</key>
+				<string>Searching zoxide…</string>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuedelaycustom</key>
+				<integer>1</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuemode</key>
+				<integer>1</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>uid</key>
+			<string>A671DAA1-3A25-4190-A9E8-82A26C46366D</string>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>version</key>
+			<integer>2</integer>
+			<key>config</key>
+			<dict>
+				<key>script</key>
+				<string>/usr/bin/osascript -l JavaScript ./zoxide.js action "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>type</key>
+				<integer>0</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>uid</key>
+			<string>530ED2E5-D251-41C0-A7FC-C9B39F926681</string>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>version</key>
+			<integer>1</integer>
+			<key>config</key>
+			<dict>
+				<key>title</key>
+				<string>Zoxide</string>
+				<key>text</key>
+				<string>{query}</string>
+				<key>onlyshowifquerypopulated</key>
+				<true/>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+			</dict>
+		</dict>
+	</array>
+	<key>connections</key>
+	<dict>
+		<key>127EC551-CF84-4CF7-B0EA-B4CA641DFBC6</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>A6D23031-E68B-4587-969D-EFCD0B0FF74C</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>6A89B2AF-096D-4AB8-8850-901E7389D826</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>A6D23031-E68B-4587-969D-EFCD0B0FF74C</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>A6D23031-E68B-4587-969D-EFCD0B0FF74C</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>530ED2E5-D251-41C0-A7FC-C9B39F926681</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>38D1A3C6-5A26-44BD-9DD7-89D19EAA578A</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>A671DAA1-3A25-4190-A9E8-82A26C46366D</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>A671DAA1-3A25-4190-A9E8-82A26C46366D</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>530ED2E5-D251-41C0-A7FC-C9B39F926681</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
+	<key>uidata</key>
+	<dict>
+		<key>127EC551-CF84-4CF7-B0EA-B4CA641DFBC6</key>
+		<dict>
+			<key>xpos</key>
+			<integer>60</integer>
+			<key>ypos</key>
+			<integer>420</integer>
+		</dict>
+		<key>6A89B2AF-096D-4AB8-8850-901E7389D826</key>
+		<dict>
+			<key>xpos</key>
+			<integer>60</integer>
+			<key>ypos</key>
+			<integer>240</integer>
+		</dict>
+		<key>A6D23031-E68B-4587-969D-EFCD0B0FF74C</key>
+		<dict>
+			<key>xpos</key>
+			<integer>360</integer>
+			<key>ypos</key>
+			<integer>240</integer>
+		</dict>
+		<key>38D1A3C6-5A26-44BD-9DD7-89D19EAA578A</key>
+		<dict>
+			<key>xpos</key>
+			<integer>60</integer>
+			<key>ypos</key>
+			<integer>60</integer>
+		</dict>
+		<key>A671DAA1-3A25-4190-A9E8-82A26C46366D</key>
+		<dict>
+			<key>xpos</key>
+			<integer>360</integer>
+			<key>ypos</key>
+			<integer>60</integer>
+		</dict>
+		<key>530ED2E5-D251-41C0-A7FC-C9B39F926681</key>
+		<dict>
+			<key>xpos</key>
+			<integer>660</integer>
+			<key>ypos</key>
+			<integer>60</integer>
+		</dict>
+	</dict>
+</dict>
+</plist>
