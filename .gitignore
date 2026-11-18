@@ -1,4 +1,5 @@
 dist/
+workflow/zoxide-helper
 __pycache__/
 *.pyc
 .DS_Store

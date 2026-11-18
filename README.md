@@ -4,13 +4,13 @@ An Alfred workflow that uses **your installed macOS `zoxide` binary and its data
 
 ## Requirements and installation
 
-- macOS and Alfred 5+ with the Powerpack (required for workflows).
+- An **Apple Silicon Mac (arm64), macOS 12 or later**, and Alfred 5+ with the Powerpack (required for workflows). Intel Macs are not supported.
 - Installed [zoxide](https://github.com/ajeetdsouza/zoxide), e.g. `brew install zoxide`.
 - Download **Zoxide.alfredworkflow** from the [latest release](https://github.com/jhnmks/zoxide_alfred/releases/latest) and open it to import into Alfred.
-- To build from source instead: run `python3 tools/build.py`, then open `dist/Zoxide.alfredworkflow`.
+- To build from source instead: install Xcode Command Line Tools (`xcode-select --install`), run `swift tools/build.swift`, then open `dist/Zoxide.alfredworkflow`.
 - Click **Configure Workflow…** to choose your terminal and optionally override the binary or database directory.
 
-The workflow runs with macOS's built-in JavaScript for Automation (`osascript`); Node and Python are **not required after installation**. No shell plugin or shell initialization is needed. Python 3 is used only for packaging; Node is used only for tests.
+Version 2.0.0 uses a native, compiled Swift helper (`zoxide-helper`), built for Apple Silicon and ad-hoc signed. Runtime, build tooling, icon generation, and automated tests use Swift; **Python and Node are not required**. Installed workflows do not require Swift development tools. No shell plugin or shell initialization is needed. The helper invokes your installed zoxide directly with argument arrays, without a shell. Folder dialogs, confirmation, and clipboard handling use AppKit. Terminal and iTerm2 automation use `NSAppleScript` from Swift; there is no JavaScript runtime or `osascript` subprocess.
 
 ## Usage
 
@@ -39,12 +39,12 @@ Deletion **only removes a zoxide record**, never the directory or its files. Can
 1. Type `z remove` or `z remove project` (`z delete` remains an alias).
 2. Highlight a folder and press **Option-Down** to put it in Alfred's File Buffer and move to the next result. **Option-Up** adds without moving.
 3. Repeat for the folders you want to remove. You can change the search to find other records without clearing the buffer.
-4. Press **Option-Right** to action the buffer, then choose **Remove from zoxide**.
+4. Press **Option-Right** to action the buffer, then choose **Remove from zoxide**. A single Universal Action accepts files and text together, including mixed buffers of existing folders and missing-folder paths that Alfred classifies as text.
 5. Review the paths and confirm **Remove** once for the batch. **Cancel** changes nothing.
 
 **Option-Left** removes the last buffered item; **Option-Backspace** clears the buffer. These shortcuts are configurable in Alfred Preferences → Features → File Search → Buffer. Clear the buffer before starting if it contains unrelated items.
 
-Plain Enter on a `z remove` result still removes just that record after confirmation. Batch removal deduplicates paths and reports individual failures without deleting files. Existing folders selected together in Finder can also use the **Remove from zoxide** Universal Action. Stale records are displayed with `file:skipcheck`, but Alfred may not allow nonexistent folders into its native File Buffer; use plain Enter for those.
+Selections must match database entries exactly, or resolve to one unique stored entry through filesystem aliases (for example `/var` and `/private/var` on macOS). Confirmation and removal use the original stored path. Unrelated or ambiguous paths abort the entire batch before confirmation. Plain Enter on a `z remove` result still removes just that record after confirmation. Batch removal deduplicates paths and reports individual failures without deleting files. Existing folders selected together in Finder can also use the **Remove from zoxide** Universal Action. Stale records are displayed with `file:skipcheck`, but Alfred may not allow nonexistent folders into its native File Buffer; use plain Enter for those.
 
 ## Add from Finder (Universal Action)
 
@@ -60,25 +60,27 @@ All three settings use Alfred's native **file picker**, opening the standard mac
 - **Zoxide binary:** optional file picker for your installed executable; leave blank for auto-detection. Default locations are `/opt/homebrew/bin/zoxide`, `/usr/local/bin/zoxide`, `~/.local/bin/zoxide`, and `~/.cargo/bin/zoxide`. No login shell is launched, so custom shell aliases and PATH changes are not used.
 - **Zoxide data directory:** optional folder picker; leave empty to use the existing default zoxide database. Blank overrides are removed from the zoxide subprocess environment, not treated as a separate database. If your shell sets `_ZO_DATA_DIR`, set the same **absolute path** here. Alfred does not inherit interactive shell configuration. Advanced zoxide settings (`_ZO_EXCLUDE_DIRS`, `_ZO_MAXAGE`, `_ZO_RESOLVE_SYMLINKS`) may also be supplied as workflow environment variables.
 
+The bundled helper is ad-hoc signed, not Developer ID signed or notarized. macOS security behavior for downloaded archives still needs a clean-machine smoke test; local automated tests do not establish Gatekeeper compatibility. Do not disable Gatekeeper globally.
+
 macOS may prompt for Automation access when controlling Terminal or iTerm2. Allow it under **System Settings → Privacy & Security → Automation**. Missing binaries and other errors appear in Alfred's results or a notification. Use Alfred's workflow debugger if notifications are disabled.
 
 ## Development
 
 ```sh
-node --test tests/*.test.js
-python3 tools/build.py
+swift tools/build.swift
+swift tests/workflow.swift
 plutil -lint workflow/info.plist
 ```
 
-Tests cover command parsing, quoting, modifier output, packaging, and (on macOS with zoxide installed) real JXA/zoxide queries and writes against a temporary isolated database. They never change your normal zoxide database. GUI interactions and terminal integration require a manual smoke test in Alfred after import:
+Build first, then run the dependency-free Swift test script on Apple Silicon with zoxide installed. Tests check the archive, arm64 binary, signature, plist settings, command parsing, modifier payloads, literal special-character paths, and real helper/zoxide queries and writes against temporary isolated databases. HOME and data-directory overrides are isolated so tests never change your normal zoxide database. Batch tests use the read-only `validate-removal` command, which returns original stored paths without removing records or opening confirmation UI. GUI interactions, cancellation, partial removal failures, and terminal integration require a manual smoke test in Alfred after import:
 
 1. Configure the terminal and binary path.
 2. Add a temporary folder using a typed path, `z add` folder-name search, and Finder's **Add to zoxide** Universal Action. Check that a file selection is rejected without adding a record and multiple selections are not accepted.
 3. Search for it, test Enter and all three modifiers.
-4. Delete the record, cancel once, then confirm. Verify the directory still exists.
+4. Delete the record, cancel once, then confirm. Also buffer several records, cancel the batch, then confirm once. Verify all directories still exist. To check partial-failure reporting, make a selected record unavailable to zoxide after confirmation is displayed but before accepting; successful removals should still be reported alongside failures.
 5. Test empty results, an unavailable binary path, and an unavailable folder in `z delete`.
 
-`workflow/info.plist` is generated by `tools/build.py`; change the builder rather than editing the plist directly. The build archive is in `dist/` (ignored by Git).
+`workflow/info.plist` is the checked-in workflow template: edit it for workflow graph, UI, and configuration changes. `tools/build.swift` loads that template, preserves its schema and settings, updates helper commands, embeds this README, and sets version `2.0.0`. It compiles `workflow/main.swift` with `swiftc -O -target arm64-apple-macosx12.0`, marks the helper executable, ad-hoc signs it, and runs `tools/icon.swift` to regenerate the icon. Foundation `Process` invokes the macOS tools directly without shell interpolation or third-party dependencies. The archive contains exactly `info.plist`, `zoxide-helper`, `icon.png`, and `README.md` at its root and preserves the helper's executable permissions. The build archive is in `dist/`; it and `workflow/zoxide-helper` are ignored by Git.
 
 ## Possible next features
 
