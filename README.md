@@ -29,6 +29,8 @@ Version 2.0.0 uses a native, compiled Swift helper (`zoxide-helper`), built for 
 - `z delete` — List all entries for removal, including unavailable folders.
 - `z remove all` (or `z delete all`) — Show an explicit **Remove all records** option for the configured database. Enter previews every affected path and requires confirmation; Cancel is the default. No files are deleted. This clears records, not just the Alfred buffer, and cannot be undone. Only the displayed snapshot is removed; records added afterward are not silently included. The exact removal query `all` is reserved for this action.
 
+**Home folder and exclusions:** zoxide intentionally does not record your home directory itself (for example `/Users/jmokos`), even when `zoxide add` exits successfully. Add a subfolder instead. The workflow verifies the database after adding and explains when zoxide skips home or does not retain a folder, including exclusions configured with `_ZO_EXCLUDE_DIRS`.
+
 The workflow editor has separate inputs for `z` (search/open), `z add` (native folder-name search), and `z delete` (record-name search). Finder/parent/terminal/copy actions remain modifiers on `z` results. Delete intentionally uses a Script Filter backed by zoxide, not Spotlight, so only recorded entries—including missing folders—are offered.
 
 Deletion **only removes a zoxide record**, never the directory or its files. Cancel is the default confirmation button. Opening a folder records a visit using `zoxide add`, so its rank evolves with usage. Copying a path does not change its rank.
