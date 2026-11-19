@@ -132,7 +132,7 @@ struct Workflow {
         }
         return try search(text)
     }
-    func validateRemoval(_ arguments: [String]) throws -> [String] {
+    func removalPlan(_ arguments: [String]) throws -> (paths: [String], skipped: [String]) {
         let stored = try records(all: true)
         let exact = Set(stored)
         var resolvedRecords: [String: [String]] = [:]
@@ -140,44 +140,145 @@ struct Workflow {
             if let resolved = canonical(path) { resolvedRecords[resolved, default: []].append(path) }
         }
         var result: [String] = []
+        var skipped: [String] = []
         var seen = Set<String>()
         for argument in arguments {
             let entries = exact.contains(argument) ? [argument] : argument.components(separatedBy: CharacterSet.newlines.union(.init(charactersIn: "\t"))).filter { !$0.isEmpty }
             for entry in entries {
                 var path = entry
-                if !exact.contains(path), path.hasPrefix("/"), let resolved = canonical(path), let matches = resolvedRecords[resolved], matches.count == 1 {
+                guard path.hasPrefix("/") else {
+                    throw WorkflowError("Nothing removed. Selection is not an absolute folder path: \(entry)")
+                }
+                if !exact.contains(path), let resolved = canonical(path), let matches = resolvedRecords[resolved] {
+                    guard matches.count == 1 else {
+                        throw WorkflowError("Nothing removed. Selection matches multiple zoxide records: \(entry)")
+                    }
                     path = matches[0]
                 }
-                guard path.hasPrefix("/"), exact.contains(path) else {
-                    throw WorkflowError("Nothing removed. Selection does not uniquely match a zoxide record: \(entry)\nClear stale buffer items and select records from z remove again.")
+                guard exact.contains(path) else {
+                    if !skipped.contains(entry) { skipped.append(entry) }
+                    continue
                 }
                 if seen.insert(path).inserted { result.append(path) }
             }
         }
-        guard !result.isEmpty else { throw WorkflowError("Select at least one zoxide record to remove.") }
-        return result
+        guard !result.isEmpty || !skipped.isEmpty else { throw WorkflowError("Select at least one zoxide record to remove.") }
+        return (result, skipped)
     }
-    func remove(_ arguments: [String]) throws -> String {
-        let paths = try validateRemoval(arguments)
+    func validateRemoval(_ arguments: [String]) throws -> [String] {
+        try removalPlan(arguments).paths
+    }
+    func removalSearch(_ query: String) throws -> String {
+        guard query.trimmingCharacters(in: .whitespacesAndNewlines) == "all" else {
+            return try search(query, removing: true)
+        }
+        let paths = try records(all: true)
+        let argument = try json(["action": "remove-all", "paths": paths])
+        return try json(["items": [[
+            "title": "Remove all \(paths.count) zoxide records…",
+            "subtitle": "Clear the entire configured database. Confirmation required. No files deleted.",
+            "valid": !paths.isEmpty, "arg": argument,
+            "icon": ["path": "icon.png"]
+        ]]])
+    }
+    func removeRequest(_ arguments: [String]) throws -> String {
+        if arguments.count == 1, let data = arguments[0].data(using: .utf8),
+           let request = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           request["action"] as? String == "remove-all", let paths = request["paths"] as? [String] {
+            // Use the displayed snapshot: records added afterward are not silently included.
+            return try remove(paths, all: true)
+        }
+        return try remove(arguments)
+    }
+    func remove(_ arguments: [String], all: Bool = false) throws -> String {
+        let plan = try removalPlan(arguments)
+        let paths = plan.paths
+        guard !paths.isEmpty else {
+            return "Nothing left to remove. The selected paths are no longer in zoxide. Clear Alfred’s buffer with Option-Backspace. No files were deleted."
+        }
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
         app.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Remove \(paths.count) record(s) from zoxide?"
-        alert.informativeText = "Only database records will be removed. No files or folders will be deleted."
-        alert.alertStyle = .warning
+        let countLabel = paths.count == 1 ? "1 folder" : "\(paths.count) folders"
+        alert.messageText = all ? "Remove all \(paths.count) zoxide records?" : "Remove \(countLabel) from zoxide?"
+        alert.informativeText = (all ? "This clears every record listed below from the configured zoxide database. There is no undo. No files or folders will be deleted." : "These folders will be forgotten by zoxide. Their files and contents will remain untouched.") + (plan.skipped.isEmpty ? "" : "\n\nSkipped \(plan.skipped.count) buffered path(s) no longer recorded in zoxide.")
+        alert.alertStyle = .informational
+        let iconURL = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().appendingPathComponent("icon.png")
+        if let icon = NSImage(contentsOf: iconURL) { alert.icon = icon }
         alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Remove")
+        alert.addButton(withTitle: all ? "Remove all records" : "Remove from zoxide")
         alert.buttons[0].keyEquivalent = "\r"
         alert.buttons[1].keyEquivalent = ""
-        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 560, height: 220))
+        let removeButton = alert.buttons[1]
+        removeButton.hasDestructiveAction = false
+        removeButton.bezelColor = .systemBlue
+        removeButton.contentTintColor = .white
+        removeButton.attributedTitle = NSAttributedString(
+            string: removeButton.title,
+            attributes: [.foregroundColor: NSColor.white,
+                         .font: NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium)])
+
+        let width: CGFloat = 480
+        let list = NSStackView()
+        list.orientation = .vertical
+        list.alignment = .leading
+        list.spacing = 0
+        list.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
+        list.translatesAutoresizingMaskIntoConstraints = false
+        for (index, path) in paths.enumerated() {
+            let url = URL(fileURLWithPath: path)
+            let title = NSTextField(labelWithString: url.lastPathComponent.isEmpty ? "/" : url.lastPathComponent)
+            title.font = .systemFont(ofSize: 13, weight: .semibold)
+            title.lineBreakMode = .byTruncatingMiddle
+            let detail = NSTextField(wrappingLabelWithString: path)
+            detail.font = .systemFont(ofSize: 11)
+            detail.textColor = .secondaryLabelColor
+            detail.isSelectable = true
+            detail.toolTip = path
+            let labels = NSStackView(views: [title, detail])
+            labels.orientation = .vertical
+            labels.alignment = .leading
+            labels.spacing = 3
+            let image = NSImageView(image: NSImage(systemSymbolName: "folder", accessibilityDescription: "Folder")!)
+            image.contentTintColor = .secondaryLabelColor
+            image.translatesAutoresizingMaskIntoConstraints = false
+            let row = NSStackView(views: [image, labels])
+            row.alignment = .top
+            row.spacing = 10
+            row.edgeInsets = NSEdgeInsets(top: 11, left: 12, bottom: 11, right: 12)
+            row.translatesAutoresizingMaskIntoConstraints = false
+            list.addArrangedSubview(row)
+            NSLayoutConstraint.activate([
+                row.widthAnchor.constraint(equalToConstant: width),
+                image.widthAnchor.constraint(equalToConstant: 20),
+                image.heightAnchor.constraint(equalToConstant: 20),
+                labels.widthAnchor.constraint(equalToConstant: width - 54)
+            ])
+            if index < paths.count - 1 {
+                let divider = NSBox()
+                divider.boxType = .separator
+                list.addArrangedSubview(divider)
+                divider.widthAnchor.constraint(equalToConstant: width).isActive = true
+            }
+        }
+        list.widthAnchor.constraint(equalToConstant: width).isActive = true
+        list.layoutSubtreeIfNeeded()
+        let height = min(320, max(70, list.fittingSize.height))
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: width, height: height))
         scroll.hasVerticalScroller = true
-        scroll.hasHorizontalScroller = true
-        let text = NSTextView(frame: NSRect(x: 0, y: 0, width: 900, height: max(220, paths.count * 22)))
-        text.isEditable = false
-        text.string = paths.joined(separator: "\n")
-        text.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        scroll.documentView = text
+        scroll.autohidesScrollers = true
+        scroll.drawsBackground = true
+        scroll.backgroundColor = .controlBackgroundColor
+        scroll.wantsLayer = true
+        scroll.layer?.cornerRadius = 8
+        scroll.layer?.borderWidth = 1
+        scroll.layer?.borderColor = NSColor.separatorColor.cgColor
+        scroll.documentView = list
+        list.setFrameSize(NSSize(width: width, height: list.fittingSize.height))
+        // NSStackView is unflipped; start at the first row rather than the bottom.
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: max(0, list.frame.height - height)))
+        scroll.reflectScrolledClipView(scroll.contentView)
         alert.accessoryView = scroll
         guard alert.runModal() == .alertSecondButtonReturn else { return "" }
         var failures: [String] = []
@@ -186,11 +287,19 @@ struct Workflow {
             do { _ = try zoxide(["remove", "--", path]); count += 1 }
             catch { failures.append(path + ": " + error.localizedDescription) }
         }
-        return "Removed \(count) zoxide record(s). No files deleted." + (failures.isEmpty ? "" : "\nFailed (\(failures.count)):\n" + failures.joined(separator: "\n"))
+        return "Removed \(count) zoxide record(s). No files deleted." + (plan.skipped.isEmpty ? "" : " Skipped \(plan.skipped.count) unrecorded path(s).") + (failures.isEmpty ? "" : "\nFailed (\(failures.count)):\n" + failures.joined(separator: "\n"))
     }
     func add(_ path: String) throws -> String {
         guard path.hasPrefix("/"), directory(path) else { throw WorkflowError("An existing absolute folder path is required: " + path) }
         _ = try zoxide(["add", "--", path])
+        let stored = try records(all: true)
+        let resolved = canonical(path)
+        guard stored.contains(path) || (resolved != nil && stored.contains(where: { canonical($0) == resolved })) else {
+            if path == home || (resolved != nil && resolved == canonical(home)) {
+                throw WorkflowError("Zoxide does not record your home folder (\(path)). Add a folder inside it instead, such as ~/Projects. Use ~ in Alfred or your terminal to open home.")
+            }
+            throw WorkflowError("Zoxide did not retain this folder: \(path). Check _ZO_EXCLUDE_DIRS and _ZO_MAXAGE in your zoxide environment. No record was added.")
+        }
         return "Added to zoxide: " + path
     }
     func terminal(_ path: String) throws {
@@ -272,10 +381,10 @@ do {
     case "search":
         if query == "delete" || query.hasPrefix("delete ") { output = try workflow.search(String(query.dropFirst(6)).trimmingCharacters(in: .whitespaces), removing: true) }
         else { output = try workflow.browse(query) }
-    case "delete-search": output = try workflow.search(query, removing: true)
+    case "delete-search": output = try workflow.removalSearch(query)
     case "add-path": output = try workflow.add(query)
     case "action": output = try workflow.action(query)
-    case "remove-paths": output = try workflow.remove(values)
+    case "remove-paths": output = try workflow.removeRequest(values)
     case "validate-removal": output = try json(["paths": workflow.validateRemoval(values)])
     default: throw WorkflowError("Unknown command: " + mode)
     }

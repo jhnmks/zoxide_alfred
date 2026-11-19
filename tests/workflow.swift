@@ -164,6 +164,9 @@ func integration() throws {
         return paths
     }
     try expect(try items("browse", "").first?["valid"] as? Bool == false, "Empty database gets an invalid row")
+    try expect(try invoke(["add-path", environment["HOME"]!]).contains("does not record your home folder"), "Home exclusion must not report a false success")
+    let excluded = try directory("excluded folder")
+    try expect(try invoke(["add-path", excluded], ["_ZO_EXCLUDE_DIRS": excluded]).contains("did not retain this folder"), "Explicit exclusions must not report a false success")
     let first = try directory("test it's a folder; $(echo injected) & \"quoted\" é 📁")
     let second = try directory("another record")
     let third = try directory("addition")
@@ -193,6 +196,11 @@ func integration() throws {
         try expect(try items("search", query).isEmpty, "Native folder search owns bare add commands")
     }
     try expect(try items("browse", "add Projects").isEmpty, "Browse preserves native add behavior")
+    let allRows = try items("delete-search", "all")
+    try expect(allRows.count == 1 && allRows[0]["valid"] as? Bool == true, "Remove all has one explicit confirmation entry")
+    let allRequest = try json(allRows[0]["arg"] as? String ?? "")
+    try expect(allRequest["action"] as? String == "remove-all", "Remove all uses a dedicated action")
+    try expect(Set(allRequest["paths"] as? [String] ?? []) == Set([first, second, third]), "Remove all snapshots the full configured database without deleting")
     let before = Set(try paths())
     try expect(try validated([first, second, first]) == [first, second], "Validation deduplicates in selection order")
     for separator in ["\n", "\r", "\r\n", "\t"] {
@@ -201,7 +209,11 @@ func integration() throws {
     let alias = temporary.appendingPathComponent("alias to first").path
     try fm.createSymbolicLink(atPath: alias, withDestinationPath: first)
     try expect(try validated([alias]) == [first], "Unique symlink alias maps back to original stored path")
-    for args in [[], ["relative/path"], ["/not/a/record"], [first + "\n/not/a/record"], [first, "/not/a/record"]] {
+    try expect(try validated([first, "/not/a/record"]) == [first], "Leftover buffer paths do not block recorded selections")
+    try expect(try validated([first + "\n/not/a/record"]) == [first], "Combined buffers skip unrecorded paths")
+    try expect(try validated(["/not/a/record"]).isEmpty, "Already removed selection has no removal candidates")
+    try expect(try invoke(["remove-paths", "/not/a/record"]).contains("Nothing left to remove"), "Repeat removal is a harmless no-op without a dialog")
+    for args in [[], ["relative/path"], [first, "arbitrary text"]] {
         try expect(try invoke(["validate-removal"] + args).hasPrefix("Zoxide:"), "Invalid batch rejects all paths without UI")
     }
     try expect(Set(try paths()) == before, "Validation must not mutate any records")

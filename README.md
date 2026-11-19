@@ -27,6 +27,7 @@ Version 2.0.0 uses a native, compiled Swift helper (`zoxide-helper`), built for 
 - `z add` — Start searching for a folder to add.
 - `z delete project` — Find entries to remove; Enter asks for confirmation.
 - `z delete` — List all entries for removal, including unavailable folders.
+- `z remove all` (or `z delete all`) — Show an explicit **Remove all records** option for the configured database. Enter previews every affected path and requires confirmation; Cancel is the default. No files are deleted. This clears records, not just the Alfred buffer, and cannot be undone. Only the displayed snapshot is removed; records added afterward are not silently included. The exact removal query `all` is reserved for this action.
 
 The workflow editor has separate inputs for `z` (search/open), `z add` (native folder-name search), and `z delete` (record-name search). Finder/parent/terminal/copy actions remain modifiers on `z` results. Delete intentionally uses a Script Filter backed by zoxide, not Spotlight, so only recorded entries—including missing folders—are offered.
 
@@ -44,7 +45,7 @@ Deletion **only removes a zoxide record**, never the directory or its files. Can
 
 **Option-Left** removes the last buffered item; **Option-Backspace** clears the buffer. These shortcuts are configurable in Alfred Preferences → Features → File Search → Buffer. Clear the buffer before starting if it contains unrelated items.
 
-Selections must match database entries exactly, or resolve to one unique stored entry through filesystem aliases (for example `/var` and `/private/var` on macOS). Confirmation and removal use the original stored path. Unrelated or ambiguous paths abort the entire batch before confirmation. Plain Enter on a `z remove` result still removes just that record after confirmation. Batch removal deduplicates paths and reports individual failures without deleting files. Existing folders selected together in Finder can also use the **Remove from zoxide** Universal Action. Stale records are displayed with `file:skipcheck`, but Alfred may not allow nonexistent folders into its native File Buffer; use plain Enter for those.
+Selections must match database entries exactly, or resolve to one unique stored entry through filesystem aliases (for example `/var` and `/private/var` on macOS). Confirmation and removal use the original stored path. Absolute paths no longer recorded in zoxide are skipped and counted in the confirmation/result. If none remain, removal is a harmless no-op. Relative text and ambiguous aliases still abort the batch before confirmation. Alfred owns its buffer and may retain selections after removal; clear it with Option-Backspace when finished. Plain Enter on a `z remove` result still removes just that record after confirmation. Batch removal deduplicates paths and reports individual failures without deleting files. Existing folders selected together in Finder can also use the **Remove from zoxide** Universal Action. Stale records are displayed with `file:skipcheck`, but Alfred may not allow nonexistent folders into its native File Buffer; use plain Enter for those.
 
 ## Add from Finder (Universal Action)
 
